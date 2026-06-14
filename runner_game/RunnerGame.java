@@ -54,7 +54,7 @@ public class RunnerGame extends JPanel implements ActionListener {
     private final Timer gameTimer;
     private final int runnerX = 51;
     private int runnerY = 250;
-    private final int floorY = 300;
+    private final int floorY = 301;
     private static final int WIDTH = 801;
     private static final int HEIGHT = 401;
     private static final int GRAVITY = 2;
