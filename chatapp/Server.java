@@ -2,11 +2,30 @@ import javax.swing.*;
 import java.awt.*;
 import java.io.*;
 import java.net.*;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class Server {
     private static final int PORT = 12345;
+    private static final int WINDOW_WIDTH = 420;
+    private static final int WINDOW_HEIGHT = 600;
+    private static final Color CHAT_BG = Color.WHITE;
+    private static final Color BORDER_COLOR = new Color(230, 230, 230);
+    private static final Color SEND_BUTTON_BG = new Color(0, 149, 246);
+    private static final Color CHAT_BUBBLE_OTHER = new Color(241, 240, 240);
+    private static final Color PRIMARY_BLUE = new Color(0, 132, 255);
+    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
+    private static final Font MESSAGE_FONT = new Font("SansSerif", Font.PLAIN, 13);
+    private static final Font INPUT_FONT = new Font("SansSerif", Font.PLAIN, 14);
+    private static final Font BUTTON_FONT = new Font("SansSerif", Font.BOLD, 13);
+    private static final Font SYSTEM_FONT = new Font("SansSerif", Font.ITALIC, 11);
+    private static final int THREAD_POOL_SIZE = 50;
+
     private final CopyOnWriteArrayList<ClientHandler> clients = new CopyOnWriteArrayList<>();
+    private final ExecutorService executor = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
 
     private JPanel chatContainer;
     private JScrollPane scrollPane;
@@ -16,7 +35,6 @@ public class Server {
         try {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
         } catch (Exception e) {
-            // Fallback
         }
         SwingUtilities.invokeLater(Server::new);
     }
@@ -27,14 +45,14 @@ public class Server {
     }
 
     private void setupGUI() {
-        JFrame frame = new JFrame("Chat Server Instance");
-        frame.setSize(420, 600);
+        JFrame frame = new JFrame("Chat Server");
+        frame.setSize(WINDOW_WIDTH, WINDOW_HEIGHT);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.getContentPane().setBackground(Color.WHITE);
+        frame.getContentPane().setBackground(CHAT_BG);
 
         chatContainer = new JPanel();
         chatContainer.setLayout(new GridBagLayout());
-        chatContainer.setBackground(Color.WHITE);
+        chatContainer.setBackground(CHAT_BG);
         chatContainer.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         scrollPane = new JScrollPane(chatContainer);
@@ -42,23 +60,23 @@ public class Server {
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
 
         messageField = new JTextField();
-        messageField.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        messageField.setFont(INPUT_FONT);
         messageField.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(new Color(230, 230, 230), 1, true),
+            BorderFactory.createLineBorder(BORDER_COLOR, 1, true),
             BorderFactory.createEmptyBorder(8, 12, 8, 12)
         ));
 
         JButton sendButton = new JButton("Send");
-        sendButton.setFont(new Font("SansSerif", Font.BOLD, 13));
+        sendButton.setFont(BUTTON_FONT);
         sendButton.setOpaque(true);
         sendButton.setBorderPainted(false);
         sendButton.setContentAreaFilled(true);
-        sendButton.setBackground(new Color(0, 149, 246));
+        sendButton.setBackground(SEND_BUTTON_BG);
         sendButton.setForeground(Color.WHITE);
         sendButton.setFocusPainted(false);
 
         JPanel inputPanel = new JPanel(new BorderLayout(8, 0));
-        inputPanel.setBackground(Color.WHITE);
+        inputPanel.setBackground(CHAT_BG);
         inputPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         inputPanel.add(messageField, BorderLayout.CENTER);
         inputPanel.add(sendButton, BorderLayout.EAST);
@@ -74,26 +92,26 @@ public class Server {
     }
 
     private void startServer() {
-        new Thread(() -> {
+        executor.execute(() -> {
             try (ServerSocket serverSocket = new ServerSocket(PORT)) {
-                appendSystemMessage("Server active on port " + PORT);
+                appendSystemMessage("Server running on port " + PORT);
                 while (true) {
                     Socket clientSocket = serverSocket.accept();
-                    ClientHandler clientHandler = new ClientHandler(clientSocket, this);
+                    ClientHandler clientHandler = new ClientHandler(clientSocket);
                     clients.add(clientHandler);
-                    new Thread(clientHandler).start();
+                    executor.execute(clientHandler);
                 }
             } catch (IOException e) {
                 appendSystemMessage("Server error: " + e.getMessage());
             }
-        }).start();
+        });
     }
 
     private void sendServerMessage() {
         String message = messageField.getText().trim();
         if (!message.isEmpty()) {
             broadcastMessage("Server: " + message);
-            appendChatBubble("You: " + message, true);
+            appendChatBubble("[" + LocalTime.now().format(TIME_FORMATTER) + "] You: " + message, true);
             messageField.setText("");
         }
     }
@@ -116,7 +134,7 @@ public class Server {
 
     private void appendChatBubble(String message, boolean isRightAligned) {
         SwingUtilities.invokeLater(() -> {
-            Color bubbleColor = isRightAligned ? new Color(0, 132, 255) : new Color(241, 240, 240);
+            Color bubbleColor = isRightAligned ? PRIMARY_BLUE : CHAT_BUBBLE_OTHER;
             Color textColor = isRightAligned ? Color.WHITE : Color.BLACK;
 
             ChatBubble bubble = new ChatBubble(message, bubbleColor, textColor);
@@ -132,18 +150,14 @@ public class Server {
             chatContainer.add(bubble, gbc);
             chatContainer.revalidate();
             chatContainer.repaint();
-            
-            SwingUtilities.invokeLater(() -> {
-                JScrollBar vertical = scrollPane.getVerticalScrollBar();
-                vertical.setValue(vertical.getMaximum());
-            });
+            scrollToBottom();
         });
     }
 
     private void appendSystemMessage(String text) {
         SwingUtilities.invokeLater(() -> {
             JLabel label = new JLabel(text);
-            label.setFont(new Font("SansSerif", Font.ITALIC, 11));
+            label.setFont(SYSTEM_FONT);
             label.setForeground(Color.GRAY);
 
             GridBagConstraints gbc = new GridBagConstraints();
@@ -156,15 +170,15 @@ public class Server {
             chatContainer.add(label, gbc);
             chatContainer.revalidate();
             chatContainer.repaint();
-            
-            SwingUtilities.invokeLater(() -> {
-                JScrollBar vertical = scrollPane.getVerticalScrollBar();
-                vertical.setValue(vertical.getMaximum());
-            });
+            scrollToBottom();
         });
     }
 
-    // Dedicated structural component class for rendering chat bubbles flawlessly
+    private void scrollToBottom() {
+        JScrollBar vertical = scrollPane.getVerticalScrollBar();
+        vertical.setValue(vertical.getMaximum());
+    }
+
     private static class ChatBubble extends JPanel {
         private final Color backgroundColor;
 
@@ -175,7 +189,7 @@ public class Server {
             setBorder(BorderFactory.createEmptyBorder(8, 14, 8, 14));
 
             JLabel label = new JLabel(text);
-            label.setFont(new Font("SansSerif", Font.PLAIN, 13));
+            label.setFont(MESSAGE_FONT);
             label.setForeground(fg);
             add(label, BorderLayout.CENTER);
         }
@@ -193,14 +207,12 @@ public class Server {
 
     private static class ClientHandler implements Runnable {
         private final Socket socket;
-        private final Server server;
         private PrintWriter out;
         private BufferedReader in;
         private String nickname;
 
-        public ClientHandler(Socket socket, Server server) {
+        public ClientHandler(Socket socket) {
             this.socket = socket;
-            this.server = server;
         }
 
         @Override
@@ -214,18 +226,17 @@ public class Server {
                     nickname = "Client_" + socket.getPort();
                 }
                 
-                server.broadcastMessage("[System]: " + nickname + " entered the space.");
+                broadcastMessage("[System]: " + nickname + " entered the space.");
 
                 String message;
                 while ((message = in.readLine()) != null) {
-                    server.broadcastMessage(nickname + ": " + message);
+                    broadcastMessage(nickname + ": " + message);
                 }
             } catch (IOException e) {
-                // Handoff drop connection context safely
             } finally {
-                server.removeClient(this);
+                removeClient(this);
                 if (nickname != null) {
-                    server.broadcastMessage("[System]: " + nickname + " disconnected.");
+                    broadcastMessage("[System]: " + nickname + " disconnected.");
                 }
                 closeResources();
             }
