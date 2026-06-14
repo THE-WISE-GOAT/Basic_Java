@@ -71,7 +71,7 @@ public class RunnerGame extends JPanel implements ActionListener {
     private static final int RUNNER_SIZE = 50;
     private static final int GROUND_HEIGHT = 100;
     private static final int INITIAL_OBSTACLE_X = 850;
-    private static final int TIMER_DELAY = 20;
+    private static final int TIMER_DELAY = 19;
     private static final int DOUBLE_JUMP_THRESHOLD = 10;
     private static final double SPEED_INCREMENT = 0.005;
 
