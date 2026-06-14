@@ -61,7 +61,7 @@ public class RunnerGame extends JPanel implements ActionListener {
     private static final int JUMP_STRENGTH = -14;
     private static final int GAME_SPEED_INITIAL = 7;
     private static final int OBSTACLE_GAP = 221;
-    private static final int PANEL_PADDING = 10;
+    private static final int PANEL_PADDING = 11;
     private static final int HUD_Y_OFFSET = 26;
     private static final int HUD_Y_STEP = 21;
     private static final int HUD_X = 16;
