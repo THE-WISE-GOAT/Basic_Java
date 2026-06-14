@@ -64,7 +64,7 @@ public class RunnerGame extends JPanel implements ActionListener {
     private static final int PANEL_PADDING = 10;
     private static final int HUD_Y_OFFSET = 26;
     private static final int HUD_Y_STEP = 21;
-    private static final int HUD_X = 15;
+    private static final int HUD_X = 16;
     private static final int MAX_LIVES = 4;
     private static final int INITIAL_SCORE = 0;
     private static final int RESET_RUNNER_Y_OFFSET = 51;
