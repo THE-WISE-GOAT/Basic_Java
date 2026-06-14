@@ -55,7 +55,7 @@ public class RunnerGame extends JPanel implements ActionListener {
     private final int runnerX = 50;
     private int runnerY = 250;
     private final int floorY = 300;
-    private static final int WIDTH = 800;
+    private static final int WIDTH = 801;
     private static final int HEIGHT = 400;
     private static final int GRAVITY = 1;
     private static final int JUMP_STRENGTH = -15;
