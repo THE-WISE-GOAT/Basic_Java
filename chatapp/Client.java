@@ -5,10 +5,21 @@ import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
 import java.net.*;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 
 public class Client {
+    private static final int WINDOW_WIDTH = 420;
+    private static final int WINDOW_HEIGHT = 600;
+    private static final int PORT = 12345;
+    private static final String HOST = "localhost";
+    private static final Color PRIMARY_BLUE = new Color(0, 132, 255);
+    private static final Color CHAT_BUBBLE_OTHER = new Color(241, 240, 240);
+    private static final Color SEND_BUTTON_BG = new Color(0, 149, 246);
+    private static final Color BORDER_COLOR = new Color(230, 230, 230);
+    private static final Color CHAT_BG = Color.WHITE;
+    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
+
     private Socket socket;
     private PrintWriter out;
     private BufferedReader in;
@@ -25,7 +36,6 @@ public class Client {
         try {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
         } catch (Exception e) {
-            // Fallback
         }
         SwingUtilities.invokeLater(Client::new);
     }
@@ -39,7 +49,7 @@ public class Client {
     }
 
     private void requestNickname() {
-        nickname = JOptionPane.showInputDialog(null, "Choose your unique identity handle:", "Instagram Chat Setup", JOptionPane.PLAIN_MESSAGE);
+        nickname = JOptionPane.showInputDialog(null, "Choose your unique identity handle:", "Chat Setup", JOptionPane.PLAIN_MESSAGE);
         if (nickname == null || nickname.trim().isEmpty()) {
             nickname = "Guest_" + (int)(Math.random() * 1000);
         } else {
@@ -49,13 +59,13 @@ public class Client {
 
     private void setupGUI() {
         JFrame frame = new JFrame(nickname);
-        frame.setSize(420, 600);
+        frame.setSize(WINDOW_WIDTH, WINDOW_HEIGHT);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.getContentPane().setBackground(Color.WHITE);
+        frame.getContentPane().setBackground(CHAT_BG);
 
         chatContainer = new JPanel();
         chatContainer.setLayout(new GridBagLayout());
-        chatContainer.setBackground(Color.WHITE);
+        chatContainer.setBackground(CHAT_BG);
         chatContainer.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         scrollPane = new JScrollPane(chatContainer);
@@ -65,7 +75,7 @@ public class Client {
         messageField = new JTextField();
         messageField.setFont(new Font("SansSerif", Font.PLAIN, 14));
         messageField.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(new Color(230, 230, 230), 1, true),
+            BorderFactory.createLineBorder(BORDER_COLOR, 1, true),
             BorderFactory.createEmptyBorder(8, 12, 8, 12)
         ));
 
@@ -74,7 +84,7 @@ public class Client {
         sendButton.setOpaque(true);
         sendButton.setBorderPainted(false);
         sendButton.setContentAreaFilled(true);
-        sendButton.setBackground(new Color(0, 149, 246));
+        sendButton.setBackground(SEND_BUTTON_BG);
         sendButton.setForeground(Color.WHITE);
         sendButton.setFocusPainted(false);
 
@@ -84,10 +94,10 @@ public class Client {
         typingLabel.setBorder(BorderFactory.createEmptyBorder(0, 12, 4, 0));
 
         JPanel controlWrapper = new JPanel(new BorderLayout());
-        controlWrapper.setBackground(Color.WHITE);
+        controlWrapper.setBackground(CHAT_BG);
         
         JPanel inputPanel = new JPanel(new BorderLayout(8, 0));
-        inputPanel.setBackground(Color.WHITE);
+        inputPanel.setBackground(CHAT_BG);
         inputPanel.setBorder(BorderFactory.createEmptyBorder(5, 10, 10, 10));
         
         inputPanel.add(messageField, BorderLayout.CENTER);
@@ -116,7 +126,7 @@ public class Client {
     private void setupTypingTimer() {
         typingTimer = new Timer(1500, e -> {
             isCurrentlyTyping = false;
-            SwingUtilities.invokeLater(() -> typingLabel.setText(" "));
+            typingLabel.setText(" ");
         });
         typingTimer.setRepeats(false);
     }
@@ -124,20 +134,20 @@ public class Client {
     private void handleTypingActivity() {
         if (!isCurrentlyTyping) {
             isCurrentlyTyping = true;
-            SwingUtilities.invokeLater(() -> typingLabel.setText("typing..."));
+            typingLabel.setText("typing...");
         }
         typingTimer.restart();
     }
 
     private void connectToServer() {
         try {
-            socket = new Socket("localhost", 12345);
+            socket = new Socket(HOST, PORT);
             out = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), "UTF-8"), true);
             in = new BufferedReader(new InputStreamReader(socket.getInputStream(), "UTF-8"));
 
             out.println(nickname);
         } catch (IOException e) {
-            JOptionPane.showMessageDialog(null, "Could not hook connection stream.", "Network Failure", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(null, "Could not connect to server.", "Connection Failed", JOptionPane.ERROR_MESSAGE);
             System.exit(0);
         }
     }
@@ -157,7 +167,7 @@ public class Client {
                     }
                 }
             } catch (IOException e) {
-                appendSystemMessage("Disconnected structural route link from host.");
+                appendSystemMessage("Disconnected from server.");
             } finally {
                 closeResources();
             }
@@ -168,7 +178,7 @@ public class Client {
         String message = messageField.getText().trim();
         if (!message.isEmpty()) {
             out.println(message);
-            appendChatBubble("[" + getCurrentTime() + "] You: " + message, true);
+            appendChatBubble("[" + LocalTime.now().format(TIME_FORMATTER) + "] You: " + message, true);
             messageField.setText("");
             isCurrentlyTyping = false;
             typingLabel.setText(" ");
@@ -178,7 +188,7 @@ public class Client {
 
     private void appendChatBubble(String message, boolean isRightAligned) {
         SwingUtilities.invokeLater(() -> {
-            Color bubbleColor = isRightAligned ? new Color(0, 132, 255) : new Color(241, 240, 240);
+            Color bubbleColor = isRightAligned ? PRIMARY_BLUE : CHAT_BUBBLE_OTHER;
             Color textColor = isRightAligned ? Color.WHITE : Color.BLACK;
 
             ChatBubble bubble = new ChatBubble(message, bubbleColor, textColor);
@@ -194,11 +204,7 @@ public class Client {
             chatContainer.add(bubble, gbc);
             chatContainer.revalidate();
             chatContainer.repaint();
-            
-            SwingUtilities.invokeLater(() -> {
-                JScrollBar vertical = scrollPane.getVerticalScrollBar();
-                vertical.setValue(vertical.getMaximum());
-            });
+            scrollToBottom();
         });
     }
 
@@ -218,16 +224,13 @@ public class Client {
             chatContainer.add(label, gbc);
             chatContainer.revalidate();
             chatContainer.repaint();
-            
-            SwingUtilities.invokeLater(() -> {
-                JScrollBar vertical = scrollPane.getVerticalScrollBar();
-                vertical.setValue(vertical.getMaximum());
-            });
+            scrollToBottom();
         });
     }
 
-    private String getCurrentTime() {
-        return new SimpleDateFormat("HH:mm").format(new Date());
+    private void scrollToBottom() {
+        JScrollBar vertical = scrollPane.getVerticalScrollBar();
+        vertical.setValue(vertical.getMaximum());
     }
 
     private void closeResources() {
@@ -240,7 +243,6 @@ public class Client {
         }
     }
 
-    // Custom structural UI layer handles font rendering cleanly across platforms
     private static class ChatBubble extends JPanel {
         private final Color backgroundColor;
 
